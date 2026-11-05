@@ -1,0 +1,39 @@
+{
+  "name": "bc-tracker",
+  "version": "1.0.0",
+  "description": "Basecamp time tracker: desktop app plus an in-page start/stop button",
+  "main": "src/main/index.js",
+  "license": "MIT",
+  "private": true,
+  "scripts": {
+    "start": "electron .",
+    "test": "node --test \"tests/*.test.*\"",
+    "auth": "node scripts/auth.js",
+    "dist": "electron-builder --win portable --publish never"
+  },
+  "build": {
+    "appId": "local.bc-tracker",
+    "productName": "BC Tracker",
+    "directories": {
+      "output": "dist"
+    },
+    "files": [
+      "src/**",
+      "assets/**",
+      "package.json"
+    ],
+    "win": {
+      "target": [
+        "portable"
+      ],
+      "icon": "assets/running.png"
+    },
+    "portable": {
+      "artifactName": "BC-Tracker-${version}.exe"
+    }
+  },
+  "devDependencies": {
+    "electron": "^45.2.3",
+    "electron-builder": "^26.18.0"
+  }
+}

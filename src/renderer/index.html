@@ -1,0 +1,43 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'none'; script-src 'self'; style-src 'self'" />
+    <title>BC Tracker</title>
+    <link rel="stylesheet" href="./styles.css" />
+  </head>
+  <body>
+    <header class="header">
+      <h1>BC Tracker</h1>
+      <input id="search" type="search" placeholder="Search tasks or projects" autocomplete="off" />
+      <label class="toggle" title="Show each task once per day">
+        <input id="unique" type="checkbox" />
+        <span class="toggle__track"></span>
+        Unique/day
+      </label>
+      <kbd id="hotkey"></kbd>
+    </header>
+
+    <section id="status" class="status">
+      <button id="status-stop" class="round round--stop" title="Stop timer" hidden>■</button>
+      <span id="status-text" class="status__text">Loading…</span>
+      <span id="status-clock" class="status__clock"></span>
+    </section>
+    <p id="notice" class="notice" hidden></p>
+
+    <main id="list" class="list"></main>
+
+    <template id="entry-template">
+      <article class="entry">
+        <button class="round entry__toggle"></button>
+        <div class="entry__body" title="Copy task link">
+          <div class="entry__title"></div>
+          <div class="entry__meta"></div>
+        </div>
+        <button class="entry__delete" title="Delete entry">✕</button>
+      </article>
+    </template>
+
+    <script type="module" src="./renderer.js"></script>
+  </body>
+</html>
