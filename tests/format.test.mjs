@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { formatElapsed, formatHours, formatTime, groupByDay } from '../src/renderer/format.js'
+import { formatElapsed, formatHours, formatTime, groupByDay, isLoggedLive } from '../src/renderer/format.js'
 
 const entry = (id, recordingId, date, hours, title = 'Task', project = 'NEFI') => ({
   id,
@@ -9,6 +9,7 @@ const entry = (id, recordingId, date, hours, title = 'Task', project = 'NEFI') =
   hours,
   title,
   project,
+  createdAt: `${date}T12:00:00Z`,
 })
 const ENTRIES = [
   entry(1, 10, '2026-11-05', 0.5, 'Fix menu'),
@@ -53,4 +54,34 @@ test('search matches title and project, and leaves totals alone', () => {
   assert.equal(days.length, 1)
   assert.deepEqual(days[0].entries.map((e) => e.id), [3])
   assert.equal(days[0].total, 1.75)
+})
+
+test('days follow the selected zone, matching the time shown on the row', () => {
+  const entries = [{ ...entry(1, 10, '2026-11-05', 1), createdAt: '2026-11-04T23:12:00Z' }]
+  assert.equal(groupByDay(entries, { timeZone: 'UTC' })[0].date, '2026-11-04')
+  assert.equal(groupByDay(entries, { timeZone: 'Europe/Moscow' })[0].date, '2026-11-05')
+  assert.equal(groupByDay(entries, { timeZone: 'America/Los_Angeles' })[0].date, '2026-11-04')
+})
+
+test('totals move with the entries when the zone changes the day', () => {
+  const entries = [
+    { ...entry(1, 10, '2026-11-05', 1), createdAt: '2026-11-04T23:12:00Z' },
+    { ...entry(2, 20, '2026-11-05', 2), createdAt: '2026-11-05T01:00:00Z' },
+  ]
+  const days = groupByDay(entries, { timeZone: 'UTC' })
+  assert.deepEqual(days.map((d) => [d.date, d.total]), [
+    ['2026-11-05', 2],
+    ['2026-11-04', 1],
+  ])
+})
+
+test('bulk-imported entries keep their Basecamp date and aren\'t treated as live', () => {
+  const imported = { ...entry(1, 10, '2026-10-27', 1.5), createdAt: '2026-10-29T04:52:00Z' }
+  assert.equal(groupByDay([imported], { timeZone: 'UTC' })[0].date, '2026-10-27')
+  assert.equal(isLoggedLive(imported, 'UTC'), false)
+})
+
+test('an entry created the next day still counts as live', () => {
+  const nextDay = { ...entry(1, 10, '2026-11-04', 1), createdAt: '2026-11-05T02:00:00Z' }
+  assert.equal(isLoggedLive(nextDay, 'UTC'), true)
 })

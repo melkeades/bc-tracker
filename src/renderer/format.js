@@ -1,3 +1,5 @@
+const DAY_MS = 24 * 60 * 60 * 1000
+
 const pad = (n) => String(n).padStart(2, '0')
 
 export function errorMessage(err) {
@@ -23,14 +25,28 @@ export function formatDay(date) {
   return new Date(`${date}T12:00:00`).toLocaleDateString([], { weekday: 'short', month: 'short', day: 'numeric' })
 }
 
+const zonedDate = (iso, timeZone) => new Intl.DateTimeFormat('sv-SE', { timeZone }).format(new Date(iso))
+
+// Time zones can move a date by one day at most. Anything further apart was added
+// later, like a bulk import, so its created time says nothing about when the work happened.
+export function isLoggedLive(entry, timeZone) {
+  const gapMs = Math.abs(Date.parse(zonedDate(entry.createdAt, timeZone)) - Date.parse(entry.date))
+  return gapMs <= DAY_MS
+}
+
+function entryDay(entry, timeZone) {
+  return isLoggedLive(entry, timeZone) ? zonedDate(entry.createdAt, timeZone) : entry.date
+}
+
 // Day totals always cover every entry, so filtering the list never changes them.
-export function groupByDay(entries, { query = '', uniquePerDay = false } = {}) {
+export function groupByDay(entries, { query = '', uniquePerDay = false, timeZone } = {}) {
   const needle = query.trim().toLowerCase()
   const days = new Map()
 
   for (const entry of entries) {
-    if (!days.has(entry.date)) days.set(entry.date, { date: entry.date, total: 0, entries: [] })
-    const day = days.get(entry.date)
+    const date = entryDay(entry, timeZone)
+    if (!days.has(date)) days.set(date, { date, total: 0, entries: [] })
+    const day = days.get(date)
     day.total += entry.hours
 
     const matches = !needle || `${entry.title} ${entry.project}`.toLowerCase().includes(needle)
