@@ -95,6 +95,20 @@ async function refreshEntries({ force = false } = {}) {
   publish()
 }
 
+async function deleteEntries(ids) {
+  let deleted = 0
+  try {
+    for (const id of ids) {
+      await api.deleteEntry(id)
+      deleted += 1
+    }
+  } catch (err) {
+    throw new Error(`Deleted ${deleted} of ${ids.length}: ${err.message}`)
+  } finally {
+    await refreshEntries({ force: true })
+  }
+}
+
 function loadSettings() {
   const file = path.join(app.getPath('userData'), 'settings.json')
   settingsStore = createStore(file, {
@@ -172,13 +186,7 @@ function registerIpc() {
   ipcMain.handle('bc:getState', () => publicState())
   ipcMain.handle('bc:start', run((task) => tracker.start(task)))
   ipcMain.handle('bc:stop', run(() => tracker.stop()))
-  ipcMain.handle(
-    'bc:deleteEntry',
-    run(async (id) => {
-      await api.deleteEntry(id)
-      await refreshEntries({ force: true })
-    }),
-  )
+  ipcMain.handle('bc:deleteEntries', run(deleteEntries))
   ipcMain.handle('bc:setAutostart', (_event, enabled) => setAutostart(enabled))
   ipcMain.handle('bc:setHotkey', (_event, accelerator) => setHotkey(accelerator))
   ipcMain.handle('bc:setTimeZone', (_event, timeZone) => setTimeZone(timeZone))

@@ -51,8 +51,11 @@ App window ────────┘    timer + queue saved to disk
 - **Settings (gear icon):** Start with Windows, the shortcut, and the time zone. The time zone
   only decides which day entries are grouped under, and defaults to Los Angeles. It never
   changes the date logged to Basecamp or the time shown on a row.
-- **App window:** search, unique-per-day filter, click a row to copy its link, ▶ to track a
-  task again, ✕ twice to delete. Deleting is permanent in Basecamp.
+- **App window:** search, click a row to copy its link, ▶ to track a task again, ✕ twice to
+  delete. Deleting is permanent in Basecamp.
+- **Unique/day:** on by default. Each task gets one row per day showing that day's total, with
+  the arrow listing its entries. ✕ on a row with several entries deletes all of them after a
+  confirmation. The ✕ on an expanded entry deletes only that one.
 - Closing the window keeps the app in the tray. Quit from the tray menu.
 
 ## Development

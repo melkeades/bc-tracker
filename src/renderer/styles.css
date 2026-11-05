@@ -1,6 +1,7 @@
 :root {
   --bg: #17191b;
   --surface: #212427;
+  --surface-sunken: #1b1e20;
   --border: #363b40;
   --text: #e8e6e3;
   --muted: #a3a8ad;
@@ -316,6 +317,50 @@ kbd {
   color: var(--text);
 }
 
+.entry__expand {
+  display: flex;
+  flex-shrink: 0;
+  align-items: center;
+  justify-content: center;
+  width: 28px;
+  height: 28px;
+  background: none;
+  border-radius: 6px;
+  color: var(--muted);
+}
+
+.entry__expand:hover:not(:disabled) {
+  background: var(--border);
+  color: var(--text);
+}
+
+.entry__expand:disabled {
+  opacity: 0.3;
+  cursor: default;
+}
+
+.entry__expand svg {
+  width: 16px;
+  height: 16px;
+  fill: none;
+  stroke: currentColor;
+  stroke-linecap: round;
+  stroke-linejoin: round;
+  stroke-width: 1.75;
+  transition: transform 0.15s;
+}
+
+.entry__expand.is-open svg {
+  transform: rotate(180deg);
+}
+
+/* Lines the child's delete button up under the parent's, past the expand button. */
+.entry--child {
+  margin-left: 44px;
+  padding: 6px 52px 6px 12px;
+  background: var(--surface-sunken);
+}
+
 .entry__delete.is-armed {
   background: var(--danger);
   color: var(--on-accent);
@@ -430,4 +475,43 @@ kbd {
   kbd {
     display: none;
   }
+}
+
+.confirm__title {
+  padding-top: 14px;
+  font-size: 15px;
+  font-weight: 600;
+}
+
+.confirm__text {
+  padding: 8px 0 14px;
+  color: var(--muted);
+  font-size: 13px;
+  overflow-wrap: anywhere;
+}
+
+.confirm__actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  padding-bottom: 8px;
+}
+
+.confirm__button {
+  padding: 6px 14px;
+  background: var(--bg);
+  border: 1px solid var(--border);
+  border-radius: 6px;
+  color: var(--text);
+  font-size: 13px;
+}
+
+.confirm__button:hover {
+  border-color: var(--muted);
+}
+
+.confirm__button--danger {
+  background: var(--danger);
+  border-color: var(--danger);
+  color: var(--on-accent);
 }

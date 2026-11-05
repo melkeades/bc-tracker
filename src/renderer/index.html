@@ -73,11 +73,34 @@
       </div>
     </dialog>
 
+    <dialog id="confirm" class="settings confirm" aria-labelledby="confirm-title">
+      <form method="dialog" class="settings__panel">
+        <h2 id="confirm-title" class="confirm__title">Delete entries?</h2>
+        <p id="confirm-text" class="confirm__text"></p>
+        <div class="confirm__actions">
+          <button class="confirm__button" value="cancel" autofocus>Cancel</button>
+          <button class="confirm__button confirm__button--danger" value="confirm">Delete all</button>
+        </div>
+      </form>
+    </dialog>
+
     <template id="entry-template">
       <article class="entry">
         <button class="round entry__toggle"></button>
         <div class="entry__body" title="Copy task link">
           <div class="entry__title"></div>
+          <div class="entry__meta"></div>
+        </div>
+        <button class="entry__delete" title="Delete entry">✕</button>
+        <button class="entry__expand" aria-label="Toggle entries">
+          <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M4 6l4 4 4-4" /></svg>
+        </button>
+      </article>
+    </template>
+
+    <template id="child-template">
+      <article class="entry entry--child">
+        <div class="entry__body" title="Copy task link">
           <div class="entry__meta"></div>
         </div>
         <button class="entry__delete" title="Delete entry">✕</button>

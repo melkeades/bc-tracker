@@ -37,7 +37,7 @@ test('formatTime shows the computer\'s local time on a 24-hour clock', () => {
 
 test('groups by day, newest first, with totals', () => {
   const days = groupByDay(ENTRIES)
-  assert.deepEqual(days.map((d) => [d.date, d.total, d.entries.length]), [
+  assert.deepEqual(days.map((d) => [d.date, d.total, d.rows.length]), [
     ['2026-11-05', 1.75, 3],
     ['2026-11-04', 2, 1],
   ])
@@ -45,14 +45,45 @@ test('groups by day, newest first, with totals', () => {
 
 test('unique/day keeps one row per task per day', () => {
   const [today, yesterday] = groupByDay(ENTRIES, { uniquePerDay: true })
-  assert.deepEqual(today.entries.map((e) => e.id), [1, 3])
-  assert.equal(yesterday.entries.length, 1)
+  assert.deepEqual(today.rows.map((r) => r.id), [1, 3])
+  assert.equal(yesterday.rows.length, 1)
+})
+
+test('a unique/day row sums its entries for that day only', () => {
+  const [today, yesterday] = groupByDay(ENTRIES, { uniquePerDay: true })
+  const [menu, bios] = today.rows
+  assert.equal(menu.hours, 0.75)
+  assert.deepEqual(menu.entries.map((e) => e.id), [1, 2])
+  assert.equal(bios.hours, 1)
+  assert.equal(bios.entries.length, 1)
+  assert.equal(yesterday.rows[0].hours, 2)
+})
+
+test('a unique/day row shows the newest entry and leaves the entries unchanged', () => {
+  const newest = { ...entry(2, 10, '2026-11-05', 0.03), createdAt: '2026-11-05T18:08:00Z' }
+  const older = { ...entry(1, 10, '2026-11-05', 0.25), createdAt: '2026-11-05T18:06:00Z' }
+  const [{ rows: [row] }] = groupByDay([newest, older], { uniquePerDay: true, timeZone: 'UTC' })
+  assert.equal(row.createdAt, newest.createdAt)
+  assert.equal(row.entries[0].hours, 0.03)
+  assert.equal(row.entries[1].hours, 0.25)
+  assert.equal(newest.hours, 0.03)
+})
+
+test('the same task on different days stays in separate rows with separate keys', () => {
+  const [today, yesterday] = groupByDay(ENTRIES, { uniquePerDay: true })
+  assert.notEqual(today.rows[0].key, yesterday.rows[0].key)
+})
+
+test('without unique/day every entry is its own row', () => {
+  const [today] = groupByDay(ENTRIES)
+  assert.deepEqual(today.rows.map((r) => r.entries.length), [1, 1, 1])
+  assert.equal(new Set(today.rows.map((r) => r.key)).size, 3)
 })
 
 test('search matches title and project, and leaves totals alone', () => {
   const days = groupByDay(ENTRIES, { query: 'trinity' })
   assert.equal(days.length, 1)
-  assert.deepEqual(days[0].entries.map((e) => e.id), [3])
+  assert.deepEqual(days[0].rows.map((r) => r.id), [3])
   assert.equal(days[0].total, 1.75)
 })
 
@@ -89,5 +120,5 @@ test('grouping leaves the entries themselves unchanged', () => {
   const original = { ...entry(1, 10, '2026-11-05', 1), createdAt: '2026-11-04T23:12:00Z' }
   const copy = { ...original }
   const [day] = groupByDay([original], { timeZone: 'UTC' })
-  assert.deepEqual(day.entries[0], copy)
+  assert.deepEqual(day.rows[0].entries[0], copy)
 })

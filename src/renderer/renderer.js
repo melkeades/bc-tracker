@@ -1,3 +1,4 @@
+import { confirmAction } from './confirm.js'
 import { errorMessage, formatDay, formatElapsed, formatHours, formatTime, groupByDay } from './format.js'
 import { hotkeyLabel } from './options.js'
 import { renderSettings } from './settings.js'
@@ -7,11 +8,14 @@ const COPIED_MS = 1500
 
 const $ = (id) => document.getElementById(id)
 const list = $('list')
-const template = $('entry-template')
+const rowTemplate = $('entry-template')
+const childTemplate = $('child-template')
 
 const view = { query: '', uniquePerDay: $('unique').checked }
 let state = { running: null, last: null, pending: 0, error: null, entries: [], notice: null }
 let actionError = null
+let rows = new Map()
+const expanded = new Set()
 
 function act(promise) {
   actionError = null
@@ -46,24 +50,47 @@ function createDay(day) {
   return row
 }
 
-function createEntry(entry) {
-  const isRunning = state.running?.recordingId === entry.recordingId
-  const row = template.content.firstElementChild.cloneNode(true)
-  row.dataset.id = entry.id
-  row.classList.toggle('is-running', isRunning)
-  row.querySelector('.entry__title').textContent = entry.title
-  row.querySelector('.entry__meta').textContent =
-    `${entry.project} · ${formatTime(entry.createdAt)} · ${formatHours(entry.hours)}`
+const isExpandable = (row) => view.uniquePerDay && row.entries.length > 1
+const isOpen = (row) => isExpandable(row) && expanded.has(row.key)
 
-  const toggle = row.querySelector('.entry__toggle')
+function createRow(row) {
+  const isRunning = state.running?.recordingId === row.recordingId
+  const element = rowTemplate.content.firstElementChild.cloneNode(true)
+  element.dataset.id = row.id
+  element.dataset.key = row.key
+  element.classList.toggle('is-running', isRunning)
+  element.querySelector('.entry__title').textContent = row.title
+  element.querySelector('.entry__meta').textContent =
+    `${row.project} · ${formatTime(row.createdAt)} · ${formatHours(row.hours)}`
+
+  const toggle = element.querySelector('.entry__toggle')
   toggle.textContent = isRunning ? '■' : '▶'
   toggle.title = isRunning ? 'Stop timer' : 'Track this task'
   toggle.classList.toggle('round--stop', isRunning)
-  return row
+
+  const expand = element.querySelector('.entry__expand')
+  expand.hidden = !view.uniquePerDay
+  expand.disabled = !isExpandable(row)
+  expand.classList.toggle('is-open', isOpen(row))
+  expand.setAttribute('aria-expanded', String(isOpen(row)))
+  expand.title = !isExpandable(row) ? 'No other entries this day' : isOpen(row) ? 'Hide entries' : 'Show entries'
+  return element
+}
+
+function createChild(entry) {
+  const element = childTemplate.content.firstElementChild.cloneNode(true)
+  element.dataset.id = entry.id
+  element.querySelector('.entry__meta').textContent = `${formatTime(entry.createdAt)} · ${formatHours(entry.hours)}`
+  return element
+}
+
+function createRowElements(row) {
+  return [createRow(row), ...(isOpen(row) ? row.entries.map(createChild) : [])]
 }
 
 function renderList() {
   const days = groupByDay(state.entries, { ...view, timeZone: state.settings?.timeZone })
+  rows = new Map(days.flatMap((day) => day.rows.map((row) => [row.key, row])))
   if (!days.length) {
     const empty = document.createElement('div')
     empty.className = 'placeholder'
@@ -71,7 +98,7 @@ function renderList() {
     list.replaceChildren(empty)
     return
   }
-  list.replaceChildren(...days.flatMap((day) => [createDay(day), ...day.entries.map(createEntry)]))
+  list.replaceChildren(...days.flatMap((day) => [createDay(day), ...day.rows.flatMap(createRowElements)]))
 }
 
 function render(next) {
@@ -102,7 +129,7 @@ async function copyLink(row, entry) {
 function deleteEntry(button, entry) {
   if (button.classList.contains('is-armed')) {
     button.disabled = true
-    act(window.bc.deleteEntry(entry.id))
+    act(window.bc.deleteEntries([entry.id]))
     return
   }
   button.classList.add('is-armed')
@@ -113,13 +140,33 @@ function deleteEntry(button, entry) {
   }, CONFIRM_MS)
 }
 
+async function deleteAll(row) {
+  const count = row.entries.length
+  const message =
+    `Permanently delete all ${count} entries (${formatHours(row.hours)}) for "${row.title}" on ` +
+    `${formatDay(row.day)}? They'll be removed from Basecamp and this can't be undone.`
+  if (await confirmAction(message)) await window.bc.deleteEntries(row.entries.map((entry) => entry.id))
+}
+
+function onDeleteClick(button, element, entry) {
+  const row = rows.get(element.dataset.key)
+  if (row?.entries.length > 1) act(deleteAll(row))
+  else deleteEntry(button, entry)
+}
+
+function toggleExpanded(key) {
+  if (!expanded.delete(key)) expanded.add(key)
+  renderList()
+}
+
 list.addEventListener('click', ({ target }) => {
-  const row = target.closest('.entry')
-  if (!row) return
-  const entry = findEntry(row)
+  const element = target.closest('.entry')
+  if (!element) return
+  const entry = findEntry(element)
   if (target.closest('.entry__toggle')) toggleEntry(entry)
-  else if (target.closest('.entry__delete')) deleteEntry(target.closest('.entry__delete'), entry)
-  else if (target.closest('.entry__body')) act(copyLink(row, entry))
+  else if (target.closest('.entry__expand')) toggleExpanded(element.dataset.key)
+  else if (target.closest('.entry__delete')) onDeleteClick(target.closest('.entry__delete'), element, entry)
+  else if (target.closest('.entry__body')) act(copyLink(element, entry))
 })
 
 $('status-stop').addEventListener('click', () => act(window.bc.stop()))

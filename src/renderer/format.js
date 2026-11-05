@@ -40,20 +40,29 @@ function entryDay(entry, timeZone) {
 
 // The time zone only picks the day a row sits under. It never alters entry data.
 // Day totals always cover every entry, so filtering the list never changes them.
+// With uniquePerDay, a row sums that task's entries for the day and shows the newest
+// one's fields. Entries arrive newest first, so the first one seen is the newest.
 export function groupByDay(entries, { query = '', uniquePerDay = false, timeZone } = {}) {
   const needle = query.trim().toLowerCase()
   const days = new Map()
 
   for (const entry of entries) {
     const date = entryDay(entry, timeZone)
-    if (!days.has(date)) days.set(date, { date, total: 0, entries: [] })
+    if (!days.has(date)) days.set(date, { date, total: 0, rows: [] })
     const day = days.get(date)
     day.total += entry.hours
 
-    const matches = !needle || `${entry.title} ${entry.project}`.toLowerCase().includes(needle)
-    const duplicate = uniquePerDay && day.entries.some((e) => e.recordingId === entry.recordingId)
-    if (matches && !duplicate) day.entries.push(entry)
+    if (needle && !`${entry.title} ${entry.project}`.toLowerCase().includes(needle)) continue
+
+    const row = uniquePerDay && day.rows.find((r) => r.recordingId === entry.recordingId)
+    if (row) {
+      row.hours += entry.hours
+      row.entries.push(entry)
+    } else {
+      const key = uniquePerDay ? `${date}:${entry.recordingId}` : String(entry.id)
+      day.rows.push({ ...entry, key, day: date, entries: [entry] })
+    }
   }
 
-  return [...days.values()].filter((day) => day.entries.length).sort((a, b) => b.date.localeCompare(a.date))
+  return [...days.values()].filter((day) => day.rows.length).sort((a, b) => b.date.localeCompare(a.date))
 }
