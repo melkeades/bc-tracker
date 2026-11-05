@@ -5,6 +5,7 @@ import { renderSettings } from './settings.js'
 
 const CONFIRM_MS = 3000
 const COPIED_MS = 1500
+const HOUR_MS = 60 * 60 * 1000
 
 const $ = (id) => document.getElementById(id)
 const list = $('list')
@@ -25,9 +26,15 @@ function act(promise) {
   })
 }
 
+const runningHours = () => (state.running ? (Date.now() - state.running.startedAt) / HOUR_MS : 0)
+
 function renderClock() {
   const { running } = state
   $('status-clock').textContent = running ? formatElapsed(Date.now() - running.startedAt) : ''
+  // Only the times change, so rows, scroll position and an armed ✕ are left alone.
+  for (const element of list.querySelectorAll('[data-base-hours]')) {
+    element.textContent = formatHours(Number(element.dataset.baseHours) + runningHours())
+  }
 }
 
 function renderStatus() {
@@ -43,13 +50,23 @@ function renderStatus() {
   renderClock()
 }
 
+function createDuration(hours, isLive) {
+  const element = document.createElement('span')
+  element.textContent = formatHours(hours + (isLive ? runningHours() : 0))
+  if (isLive) element.dataset.baseHours = hours
+  return element
+}
+
 function createDay(day) {
+  const label = document.createElement('span')
+  label.append(`${formatDay(day.date)} · `, createDuration(day.total, day.hasRunning))
   const row = document.createElement('div')
   row.className = 'day'
-  row.textContent = `${formatDay(day.date)} · ${formatHours(day.total)}`
+  row.append(label)
   return row
 }
 
+const loggedEntries = (row) => row.entries.filter((entry) => !entry.isRunning)
 const isExpandable = (row) => view.uniquePerDay && row.entries.length > 1
 const isOpen = (row) => isExpandable(row) && expanded.has(row.key)
 
@@ -60,8 +77,9 @@ function createRow(row) {
   element.dataset.key = row.key
   element.classList.toggle('is-running', isRunning)
   element.querySelector('.entry__title').textContent = row.title
-  element.querySelector('.entry__meta').textContent =
-    `${row.project} · ${formatTime(row.createdAt)} · ${formatHours(row.hours)}`
+  const details = [row.project, formatTime(row.createdAt)].filter(Boolean).join(' · ')
+  element.querySelector('.entry__meta').append(`${details} · `, createDuration(row.hours, row.hasRunning))
+  element.querySelector('.entry__delete').classList.toggle('is-unavailable', !loggedEntries(row).length)
 
   const toggle = element.querySelector('.entry__toggle')
   toggle.textContent = isRunning ? '■' : '▶'
@@ -80,7 +98,9 @@ function createRow(row) {
 function createChild(entry) {
   const element = childTemplate.content.firstElementChild.cloneNode(true)
   element.dataset.id = entry.id
-  element.querySelector('.entry__meta').textContent = `${formatTime(entry.createdAt)} · ${formatHours(entry.hours)}`
+  const label = entry.isRunning ? 'Running' : formatTime(entry.createdAt)
+  element.querySelector('.entry__meta').append(`${label} · `, createDuration(entry.hours, entry.isRunning))
+  element.querySelector('.entry__delete').classList.toggle('is-unavailable', Boolean(entry.isRunning))
   return element
 }
 
@@ -89,7 +109,7 @@ function createRowElements(row) {
 }
 
 function renderList() {
-  const days = groupByDay(state.entries, { ...view, timeZone: state.settings?.timeZone })
+  const days = groupByDay(state.entries, { ...view, timeZone: state.settings?.timeZone, running: state.running })
   rows = new Map(days.flatMap((day) => day.rows.map((row) => [row.key, row])))
   if (!days.length) {
     const empty = document.createElement('div')
@@ -110,7 +130,7 @@ function render(next) {
 }
 
 function findEntry(row) {
-  return state.entries.find((entry) => String(entry.id) === row.dataset.id)
+  return state.entries.find((entry) => String(entry.id) === row.dataset.id) ?? state.running
 }
 
 function toggleEntry(entry) {
@@ -141,16 +161,16 @@ function deleteEntry(button, entry) {
 }
 
 async function deleteAll(row) {
-  const count = row.entries.length
+  const logged = loggedEntries(row)
   const message =
-    `Permanently delete all ${count} entries (${formatHours(row.hours)}) for "${row.title}" on ` +
+    `Permanently delete all ${logged.length} entries (${formatHours(row.hours)}) for "${row.title}" on ` +
     `${formatDay(row.day)}? They'll be removed from Basecamp and this can't be undone.`
-  if (await confirmAction(message)) await window.bc.deleteEntries(row.entries.map((entry) => entry.id))
+  if (await confirmAction(message)) await window.bc.deleteEntries(logged.map((entry) => entry.id))
 }
 
 function onDeleteClick(button, element, entry) {
   const row = rows.get(element.dataset.key)
-  if (row?.entries.length > 1) act(deleteAll(row))
+  if (row && loggedEntries(row).length > 1) act(deleteAll(row))
   else deleteEntry(button, entry)
 }
 

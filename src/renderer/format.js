@@ -38,29 +38,44 @@ function entryDay(entry, timeZone) {
   return isLoggedLive(entry, timeZone) ? zonedDate(entry.createdAt, timeZone) : entry.date
 }
 
+// The running session isn't in Basecamp yet, so this display-only stand-in shows it in
+// the list. It carries 0 hours: elapsed time is added at render, so it can tick.
+function runningEntry({ recordingId, title, url, startedAt }, entries, timeZone) {
+  const createdAt = new Date(startedAt).toISOString()
+  const project = entries.find((entry) => entry.recordingId === recordingId)?.project ?? ''
+  const date = zonedDate(createdAt, timeZone)
+  return { id: 'running', recordingId, title, url, project, date, hours: 0, createdAt, isRunning: true }
+}
+
 // The time zone only picks the day a row sits under. It never alters entry data.
 // Day totals always cover every entry, so filtering the list never changes them.
 // With uniquePerDay, a row sums that task's entries for the day and shows the newest
 // one's fields. Entries arrive newest first, so the first one seen is the newest.
-export function groupByDay(entries, { query = '', uniquePerDay = false, timeZone } = {}) {
+export function groupByDay(entries, { query = '', uniquePerDay = false, timeZone, running = null } = {}) {
   const needle = query.trim().toLowerCase()
   const days = new Map()
+  const all = running ? [...entries, runningEntry(running, entries, timeZone)] : entries
 
-  for (const entry of entries) {
+  for (const entry of all) {
+    const isRunning = Boolean(entry.isRunning)
     const date = entryDay(entry, timeZone)
-    if (!days.has(date)) days.set(date, { date, total: 0, rows: [] })
+    if (!days.has(date)) days.set(date, { date, total: 0, hasRunning: false, rows: [] })
     const day = days.get(date)
     day.total += entry.hours
+    day.hasRunning ||= isRunning
 
     if (needle && !`${entry.title} ${entry.project}`.toLowerCase().includes(needle)) continue
 
     const row = uniquePerDay && day.rows.find((r) => r.recordingId === entry.recordingId)
     if (row) {
       row.hours += entry.hours
-      row.entries.push(entry)
+      row.hasRunning ||= isRunning
+      // The running line goes first in the expanded list, and the rest stay newest first.
+      row.entries[isRunning ? 'unshift' : 'push'](entry)
     } else {
       const key = uniquePerDay ? `${date}:${entry.recordingId}` : String(entry.id)
-      day.rows.push({ ...entry, key, day: date, entries: [entry] })
+      const next = { ...entry, key, day: date, hasRunning: isRunning, entries: [entry] }
+      day.rows[isRunning ? 'unshift' : 'push'](next)
     }
   }
 

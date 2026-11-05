@@ -8,7 +8,6 @@
   --accent: #79c68b;
   --accent-bg: #203029;
   --on-accent: #10231a;
-  --danger: #ee8a7c;
   --warning: #e6c07b;
 }
 
@@ -258,7 +257,7 @@ kbd {
   justify-content: center;
   width: 32px;
   height: 32px;
-  background: var(--accent);
+  background: var(--text);
   border-radius: 50%;
   color: var(--on-accent);
   font-size: 12px;
@@ -269,7 +268,7 @@ kbd {
 }
 
 .round--stop {
-  background: var(--danger);
+  background: var(--accent);
 }
 
 .status .round {
@@ -361,8 +360,12 @@ kbd {
   background: var(--surface-sunken);
 }
 
+.entry__delete.is-unavailable {
+  visibility: hidden;
+}
+
 .entry__delete.is-armed {
-  background: var(--danger);
+  background: var(--text);
   color: var(--on-accent);
 }
 
@@ -511,7 +514,7 @@ kbd {
 }
 
 .confirm__button--danger {
-  background: var(--danger);
-  border-color: var(--danger);
+  background: var(--text);
+  border-color: var(--text);
   color: var(--on-accent);
 }

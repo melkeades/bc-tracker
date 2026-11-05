@@ -29,6 +29,64 @@ test('formatHours turns decimal hours into hours and minutes', () => {
   assert.equal(formatHours(1.5), '1h 30m')
 })
 
+const RUNNING = { recordingId: 10, title: 'Fix menu', url: 'u', startedAt: Date.parse('2026-11-05T15:00:00Z') }
+const NEW_TASK = { ...RUNNING, recordingId: 99, title: 'New task' }
+const liveOptions = { uniquePerDay: true, timeZone: 'UTC' }
+
+test('a running session marks its day and its row, without adding logged hours', () => {
+  const [today, yesterday] = groupByDay(ENTRIES, { ...liveOptions, running: RUNNING })
+  assert.equal(today.hasRunning, true)
+  assert.equal(today.total, 1.75)
+  assert.equal(yesterday.hasRunning, false)
+  const [menu, bios] = today.rows
+  assert.equal(menu.hasRunning, true)
+  assert.equal(menu.hours, 0.75)
+  assert.equal(bios.hasRunning, false)
+})
+
+test('the running line comes first and the row keeps the newest logged entry', () => {
+  const [{ rows: [menu] }] = groupByDay(ENTRIES, { ...liveOptions, running: RUNNING })
+  assert.equal(menu.id, 1)
+  assert.deepEqual(menu.entries.map((e) => e.id), ['running', 1, 2])
+})
+
+test('a task with no entries that day gets its own row at the top', () => {
+  const [today] = groupByDay(ENTRIES, { ...liveOptions, running: NEW_TASK })
+  assert.equal(today.rows[0].title, 'New task')
+  assert.equal(today.rows[0].hasRunning, true)
+  assert.equal(today.rows[0].hours, 0)
+})
+
+test('a running task borrows its project from an older entry', () => {
+  const days = groupByDay(ENTRIES, { ...liveOptions, running: { ...RUNNING, startedAt: Date.parse('2026-11-06T09:00:00Z') } })
+  assert.equal(days[0].date, '2026-11-06')
+  assert.equal(days[0].rows[0].project, 'NEFI')
+})
+
+test('the running session lands on its start day in the selected zone', () => {
+  const running = { ...RUNNING, startedAt: Date.parse('2026-11-06T02:00:00Z') }
+  assert.equal(groupByDay([], { running, timeZone: 'UTC' })[0].date, '2026-11-06')
+  assert.equal(groupByDay([], { running, timeZone: 'America/Los_Angeles' })[0].date, '2026-11-05')
+})
+
+test('without unique/day the running session is its own row at the top of its day', () => {
+  const [today] = groupByDay(ENTRIES, { timeZone: 'UTC', running: RUNNING })
+  assert.equal(today.rows.length, 4)
+  assert.equal(today.rows[0].id, 'running')
+})
+
+test('search can hide the running row while the day keeps counting it', () => {
+  const [today] = groupByDay(ENTRIES, { ...liveOptions, running: NEW_TASK, query: 'bios' })
+  assert.equal(today.hasRunning, true)
+  assert.deepEqual(today.rows.map((r) => r.title), ['Bios'])
+})
+
+test('the running session never changes the entries passed in', () => {
+  const entries = ENTRIES.map((e) => ({ ...e }))
+  groupByDay(entries, { ...liveOptions, running: RUNNING })
+  assert.deepEqual(entries, ENTRIES)
+})
+
 test('formatTime shows the computer\'s local time on a 24-hour clock', () => {
   const date = new Date(2026, 10, 5, 0, 30)
   assert.equal(formatTime(date.toISOString()), '00:30')
