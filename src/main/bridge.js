@@ -35,16 +35,16 @@ function parseTask({ recordingId, title, url }) {
 // Web pages can reach localhost, so three checks keep them out. A custom header
 // forces a CORS preflight, which this server never answers. Any Origin must be an
 // extension's (the extension's own service worker sends none). Host stops DNS rebinding.
-function isAllowed({ headers }) {
+function isAllowed({ headers }, port) {
   const { host, origin } = headers
   return (
-    host === `127.0.0.1:${PORT}` &&
+    host === `127.0.0.1:${port}` &&
     headers['x-bc-tracker'] === '1' &&
     (!origin || origin.startsWith('chrome-extension://'))
   )
 }
 
-function createBridge(tracker) {
+function createBridge(tracker, port = PORT) {
   const routes = {
     'GET /state': async () => tracker.state,
     'POST /start': async (req) => tracker.start(parseTask(await readJson(req))),
@@ -53,7 +53,7 @@ function createBridge(tracker) {
 
   return http.createServer(async (req, res) => {
     const route = routes[`${req.method} ${req.url}`]
-    if (!isAllowed(req)) return res.writeHead(403).end()
+    if (!isAllowed(req, port)) return res.writeHead(403).end()
     if (!route) return res.writeHead(404).end()
     try {
       const { running, pending } = await route(req)

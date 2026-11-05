@@ -2,8 +2,9 @@ const assert = require('node:assert/strict')
 const http = require('node:http')
 const { after, before, test } = require('node:test')
 const { createBridge } = require('../src/main/bridge')
-const { PORT } = require('../src/main/constants')
 
+// Not the real port, so these tests can run while the app is open.
+const PORT = 47899
 const TASK = { recordingId: 1, title: 'A', url: 'https://app.basecamp.com/1' }
 
 const calls = []
@@ -12,7 +13,7 @@ const tracker = {
   start: (task) => (calls.push(task), { running: task, pending: 0 }),
   stop: async () => ({ running: null, pending: 0 }),
 }
-const server = createBridge(tracker)
+const server = createBridge(tracker, PORT)
 
 before(() => new Promise((resolve) => server.listen(PORT, '127.0.0.1', resolve)))
 after(() => new Promise((resolve) => server.close(resolve)))

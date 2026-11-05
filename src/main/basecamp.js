@@ -104,13 +104,14 @@ class Basecamp {
   async entries(now = new Date()) {
     const from = new Date(now)
     from.setDate(from.getDate() - HISTORY_DAYS)
-    const params = new URLSearchParams({
-      person_id: await this.#myId(),
-      start_date: isoDate(from),
-      end_date: isoDate(now),
-    })
-    const list = await this.#request('GET', `/reports/timesheet.json?${params}`)
-    return list.map(toEntry).sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+    const params = new URLSearchParams({ start_date: isoDate(from), end_date: isoDate(now) })
+    const [myId, list] = await Promise.all([this.#myId(), this.#request('GET', `/reports/timesheet.json?${params}`)])
+    // The report returns the whole team and ignores its documented person_id filter.
+    // Match on person, not creator: other people can log time on your behalf.
+    return list
+      .filter((raw) => raw.person.id === myId)
+      .map(toEntry)
+      .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
   }
 
   createEntry({ recordingId, date, minutes }) {
