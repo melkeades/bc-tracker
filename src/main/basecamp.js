@@ -19,9 +19,9 @@ function loadConfig(raw = process.env.basecamp) {
   return config
 }
 
-// sv-SE formats dates as YYYY-MM-DD. With no timeZone this uses the system zone.
-function isoDate(date, timeZone) {
-  return new Intl.DateTimeFormat('sv-SE', { timeZone }).format(date)
+// The computer's local date, as YYYY-MM-DD. Never adjusted by the time zone setting.
+function isoDate(date) {
+  return new Intl.DateTimeFormat('sv-SE').format(date)
 }
 
 function toEntry(raw) {

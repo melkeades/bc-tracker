@@ -11,17 +11,15 @@ class Tracker extends EventEmitter {
   #api
   #store
   #now
-  #timeZone
   #state
   #flushing = Promise.resolve()
   error = null
 
-  constructor({ api, store, now = Date.now, timeZone = () => undefined }) {
+  constructor({ api, store, now = Date.now }) {
     super()
     this.#api = api
     this.#store = store
     this.#now = now
-    this.#timeZone = timeZone
     this.#state = { running: null, last: null, pending: [], ...store.load() }
   }
 
@@ -44,7 +42,7 @@ class Tracker extends EventEmitter {
     this.#state.pending.push({
       recordingId: running.recordingId,
       title: running.title,
-      date: isoDate(new Date(running.startedAt), this.#timeZone()),
+      date: isoDate(new Date(running.startedAt)),
       minutes: Math.round(elapsed / MINUTE_MS),
     })
   }

@@ -1,12 +1,4 @@
-import {
-  errorMessage,
-  formatDay,
-  formatElapsed,
-  formatHours,
-  formatTime,
-  groupByDay,
-  isLoggedLive,
-} from './format.js'
+import { errorMessage, formatDay, formatElapsed, formatHours, formatTime, groupByDay } from './format.js'
 import { hotkeyLabel } from './options.js'
 import { renderSettings } from './settings.js'
 
@@ -60,11 +52,8 @@ function createEntry(entry) {
   row.dataset.id = entry.id
   row.classList.toggle('is-running', isRunning)
   row.querySelector('.entry__title').textContent = entry.title
-  const { timeZone } = state.settings
-  const time = isLoggedLive(entry, timeZone) ? formatTime(entry.createdAt, timeZone) : null
-  row.querySelector('.entry__meta').textContent = [entry.project, time, formatHours(entry.hours)]
-    .filter(Boolean)
-    .join(' · ')
+  row.querySelector('.entry__meta').textContent =
+    `${entry.project} · ${formatTime(entry.createdAt)} · ${formatHours(entry.hours)}`
 
   const toggle = row.querySelector('.entry__toggle')
   toggle.textContent = isRunning ? '■' : '▶'

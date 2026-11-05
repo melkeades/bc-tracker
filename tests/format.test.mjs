@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { formatElapsed, formatHours, formatTime, groupByDay, isLoggedLive } from '../src/renderer/format.js'
+import { formatElapsed, formatHours, formatTime, groupByDay } from '../src/renderer/format.js'
 
 const entry = (id, recordingId, date, hours, title = 'Task', project = 'NEFI') => ({
   id,
@@ -29,10 +29,10 @@ test('formatHours turns decimal hours into hours and minutes', () => {
   assert.equal(formatHours(1.5), '1h 30m')
 })
 
-test('formatTime uses the given zone and a 24-hour clock', () => {
-  assert.equal(formatTime('2026-11-05T20:00:00Z', 'America/Los_Angeles'), '12:00')
-  assert.equal(formatTime('2026-11-05T20:00:00Z', 'Asia/Tokyo'), '05:00')
-  assert.equal(formatTime('2026-11-05T00:30:00Z', 'UTC'), '00:30')
+test('formatTime shows the computer\'s local time on a 24-hour clock', () => {
+  const date = new Date(2026, 10, 5, 0, 30)
+  assert.equal(formatTime(date.toISOString()), '00:30')
+  assert.equal(formatTime(new Date(2026, 10, 5, 21, 8).toISOString()), '21:08')
 })
 
 test('groups by day, newest first, with totals', () => {
@@ -56,7 +56,7 @@ test('search matches title and project, and leaves totals alone', () => {
   assert.equal(days[0].total, 1.75)
 })
 
-test('days follow the selected zone, matching the time shown on the row', () => {
+test('the zone picks the day an entry is grouped under', () => {
   const entries = [{ ...entry(1, 10, '2026-11-05', 1), createdAt: '2026-11-04T23:12:00Z' }]
   assert.equal(groupByDay(entries, { timeZone: 'UTC' })[0].date, '2026-11-04')
   assert.equal(groupByDay(entries, { timeZone: 'Europe/Moscow' })[0].date, '2026-11-05')
@@ -75,13 +75,19 @@ test('totals move with the entries when the zone changes the day', () => {
   ])
 })
 
-test('bulk-imported entries keep their Basecamp date and aren\'t treated as live', () => {
+test('bulk-imported entries stay on their Basecamp date', () => {
   const imported = { ...entry(1, 10, '2026-10-27', 1.5), createdAt: '2026-10-29T04:52:00Z' }
   assert.equal(groupByDay([imported], { timeZone: 'UTC' })[0].date, '2026-10-27')
-  assert.equal(isLoggedLive(imported, 'UTC'), false)
 })
 
-test('an entry created the next day still counts as live', () => {
+test('an entry created the next day still follows the zone', () => {
   const nextDay = { ...entry(1, 10, '2026-11-04', 1), createdAt: '2026-11-05T02:00:00Z' }
-  assert.equal(isLoggedLive(nextDay, 'UTC'), true)
+  assert.equal(groupByDay([nextDay], { timeZone: 'UTC' })[0].date, '2026-11-05')
+})
+
+test('grouping leaves the entries themselves unchanged', () => {
+  const original = { ...entry(1, 10, '2026-11-05', 1), createdAt: '2026-11-04T23:12:00Z' }
+  const copy = { ...original }
+  const [day] = groupByDay([original], { timeZone: 'UTC' })
+  assert.deepEqual(day.entries[0], copy)
 })

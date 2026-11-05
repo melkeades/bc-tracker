@@ -202,7 +202,7 @@ function setupTracker() {
     return
   }
   const store = createStore(path.join(app.getPath('userData'), 'timer.json'), {})
-  tracker = new Tracker({ api, store, timeZone: () => settings.timeZone })
+  tracker = new Tracker({ api, store })
   tracker.on('change', (state) => {
     tray?.update(state)
     publish()

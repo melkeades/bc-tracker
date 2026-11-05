@@ -16,8 +16,8 @@ export function formatHours(hours) {
   return `${Math.floor(minutes / 60)}h ${pad(minutes % 60)}m`
 }
 
-export function formatTime(iso, timeZone) {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone })
+export function formatTime(iso) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23' })
 }
 
 export function formatDay(date) {
@@ -29,7 +29,7 @@ const zonedDate = (iso, timeZone) => new Intl.DateTimeFormat('sv-SE', { timeZone
 
 // Time zones can move a date by one day at most. Anything further apart was added
 // later, like a bulk import, so its created time says nothing about when the work happened.
-export function isLoggedLive(entry, timeZone) {
+function isLoggedLive(entry, timeZone) {
   const gapMs = Math.abs(Date.parse(zonedDate(entry.createdAt, timeZone)) - Date.parse(entry.date))
   return gapMs <= DAY_MS
 }
@@ -38,6 +38,7 @@ function entryDay(entry, timeZone) {
   return isLoggedLive(entry, timeZone) ? zonedDate(entry.createdAt, timeZone) : entry.date
 }
 
+// The time zone only picks the day a row sits under. It never alters entry data.
 // Day totals always cover every entry, so filtering the list never changes them.
 export function groupByDay(entries, { query = '', uniquePerDay = false, timeZone } = {}) {
   const needle = query.trim().toLowerCase()

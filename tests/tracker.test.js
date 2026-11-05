@@ -33,21 +33,6 @@ test('stop logs elapsed time rounded to the nearest minute', async () => {
   assert.equal(tracker.state.running, null)
 })
 
-test('the logged date follows the configured time zone', async () => {
-  const startedAt = Date.UTC(2026, 10, 6, 2) // Nov 6 in UTC, still Nov 5 in Los Angeles.
-  for (const [timeZone, date] of [['America/Los_Angeles', '2026-11-05'], ['Asia/Tokyo', '2026-11-06']]) {
-    const logged = []
-    const tracker = new Tracker({
-      api: { createEntry: async (entry) => logged.push(entry) },
-      store: { load: () => ({ running: { ...taskA, startedAt } }), save: () => {} },
-      now: () => startedAt + 5 * MIN,
-      timeZone: () => timeZone,
-    })
-    await tracker.stop()
-    assert.equal(logged[0].date, date)
-  }
-})
-
 test('sessions under one minute are discarded', async () => {
   const { tracker, logged, clock } = setup()
   tracker.start(taskA)
