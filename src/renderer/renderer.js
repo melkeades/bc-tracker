@@ -17,7 +17,7 @@ const $ = (id) => document.getElementById(id)
 const list = $('list')
 const template = $('entry-template')
 
-const view = { query: '', uniquePerDay: false }
+const view = { query: '', uniquePerDay: $('unique').checked }
 let state = { running: null, last: null, pending: 0, error: null, entries: [], notice: null }
 let actionError = null
 
