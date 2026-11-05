@@ -16,6 +16,13 @@
         Unique/day
       </label>
       <kbd id="hotkey"></kbd>
+      <button id="open-settings" class="icon-button" title="Settings" aria-label="Settings">
+        <svg viewBox="0 0 24 24" aria-hidden="true">
+          <path
+            d="M19.14 12.94a7.5 7.5 0 0 0 0-1.88l2.03-1.58a.5.5 0 0 0 .12-.64l-1.92-3.32a.5.5 0 0 0-.61-.22l-2.39.96a7.3 7.3 0 0 0-1.62-.94l-.36-2.54a.5.5 0 0 0-.5-.42h-3.84a.5.5 0 0 0-.5.42l-.36 2.54a7.3 7.3 0 0 0-1.62.94l-2.39-.96a.5.5 0 0 0-.61.22L2.71 8.84a.5.5 0 0 0 .12.64l2.03 1.58a7.5 7.5 0 0 0 0 1.88l-2.03 1.58a.5.5 0 0 0-.12.64l1.92 3.32a.5.5 0 0 0 .61.22l2.39-.96c.5.38 1.04.7 1.62.94l.36 2.54a.5.5 0 0 0 .5.42h3.84a.5.5 0 0 0 .5-.42l.36-2.54a7.3 7.3 0 0 0 1.62-.94l2.39.96a.5.5 0 0 0 .61-.22l1.92-3.32a.5.5 0 0 0-.12-.64zM12 15.5a3.5 3.5 0 1 1 0-7 3.5 3.5 0 0 1 0 7z"
+          />
+        </svg>
+      </button>
     </header>
 
     <section id="status" class="status">
@@ -26,6 +33,45 @@
     <p id="notice" class="notice" hidden></p>
 
     <main id="list" class="list"></main>
+
+    <dialog id="settings" class="settings" aria-labelledby="settings-title">
+      <div class="settings__panel">
+        <header class="settings__header">
+          <h2 id="settings-title">Settings</h2>
+          <button id="close-settings" class="icon-button" title="Close" aria-label="Close">✕</button>
+        </header>
+
+        <div class="setting">
+          <div class="setting__text">
+            <label for="setting-autostart">Start with Windows</label>
+            <p>Opens in the tray when you log in, so the Basecamp button stays live.</p>
+            <p id="autostart-hint" hidden>Only available in the built app, not in dev.</p>
+          </div>
+          <label class="toggle">
+            <input id="setting-autostart" type="checkbox" />
+            <span class="toggle__track"></span>
+          </label>
+        </div>
+
+        <div class="setting">
+          <div class="setting__text">
+            <span id="hotkey-label">Global shortcut</span>
+            <p>Stops the timer, or resumes your last task. Click to change.</p>
+          </div>
+          <button id="setting-hotkey" class="hotkey-button" aria-labelledby="hotkey-label"></button>
+        </div>
+
+        <div class="setting setting--stacked">
+          <div class="setting__text">
+            <label for="setting-timezone">Time zone</label>
+            <p>Used for entry times and the date new sessions are logged on.</p>
+          </div>
+          <select id="setting-timezone"></select>
+        </div>
+
+        <p id="settings-message" class="settings__message" hidden></p>
+      </div>
+    </dialog>
 
     <template id="entry-template">
       <article class="entry">

@@ -16,7 +16,7 @@ App window ────────┘    timer + queue saved to disk
 
 - Starting a task stops and logs whatever was running.
 - Time is logged to the nearest minute. Sessions under a minute are discarded.
-- Entries go on the date the session started, in your local timezone.
+- Entries go on the date the session started, in the time zone chosen in settings.
 - Stopped sessions are saved before any network call. If Basecamp is unreachable they stay
   queued and retry every minute.
 - Quitting the app or shutting down Windows stops the timer. After a crash it keeps running.
@@ -47,7 +47,9 @@ App window ────────┘    timer + queue saved to disk
 
 - **Basecamp button:** Start, a live clock while running (click to stop), or Switch when
   another task is running. It's greyed out if the app isn't running.
-- **Hotkey:** `Ctrl+Shift+Alt+B` stops the timer, or resumes the last task.
+- **Hotkey:** `Ctrl+Shift+Alt+B` by default. It stops the timer, or resumes the last task.
+- **Settings (gear icon):** Start with Windows, the shortcut, and the time zone, which defaults
+  to Los Angeles.
 - **App window:** search, unique-per-day filter, click a row to copy its link, ▶ to track a
   task again, ✕ twice to delete. Deleting is permanent in Basecamp.
 - Closing the window keeps the app in the tray. Quit from the tray menu.

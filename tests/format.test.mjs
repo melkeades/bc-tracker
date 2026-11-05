@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { formatElapsed, formatHours, groupByDay } from '../src/renderer/format.js'
+import { formatElapsed, formatHours, formatTime, groupByDay } from '../src/renderer/format.js'
 
 const entry = (id, recordingId, date, hours, title = 'Task', project = 'NEFI') => ({
   id,
@@ -26,6 +26,12 @@ test('formatElapsed pads and handles hours over a day', () => {
 test('formatHours turns decimal hours into hours and minutes', () => {
   assert.equal(formatHours(0.13), '0h 08m')
   assert.equal(formatHours(1.5), '1h 30m')
+})
+
+test('formatTime uses the given zone and a 24-hour clock', () => {
+  assert.equal(formatTime('2026-11-05T20:00:00Z', 'America/Los_Angeles'), '12:00')
+  assert.equal(formatTime('2026-11-05T20:00:00Z', 'Asia/Tokyo'), '05:00')
+  assert.equal(formatTime('2026-11-05T00:30:00Z', 'UTC'), '00:30')
 })
 
 test('groups by day, newest first, with totals', () => {

@@ -8,7 +8,7 @@ function icon(name, size) {
 }
 
 // Tray icon, tooltip, menu and the taskbar overlay, all driven by one update().
-function createTray({ getWindow, onOpen, onToggle, onQuit, autostart }) {
+function createTray({ getWindow, onOpen, onToggle, onQuit, onAutostart, autostart }) {
   const images = { idle: icon('idle', 32), running: icon('running', 32), badge: icon('running', 16) }
   const tray = new Tray(images.idle)
   let running = null
@@ -27,7 +27,7 @@ function createTray({ getWindow, onOpen, onToggle, onQuit, autostart }) {
           type: 'checkbox',
           visible: autostart.available,
           checked: autostart.enabled(),
-          click: (item) => autostart.set(item.checked),
+          click: (item) => onAutostart(item.checked),
         },
         { type: 'separator' },
         { label: 'Quit', click: onQuit },
@@ -37,7 +37,7 @@ function createTray({ getWindow, onOpen, onToggle, onQuit, autostart }) {
 
   buildMenu()
 
-  return function update(state) {
+  function update(state) {
     if (state.running?.recordingId === running?.recordingId) return
     running = state.running
     tray.setImage(running ? images.running : images.idle)
@@ -46,6 +46,8 @@ function createTray({ getWindow, onOpen, onToggle, onQuit, autostart }) {
     getWindow()?.setOverlayIcon(running ? images.badge : null, running ? 'Timer running' : 'Timer stopped')
     buildMenu()
   }
+
+  return { update, refreshMenu: buildMenu }
 }
 
 module.exports = { createTray }

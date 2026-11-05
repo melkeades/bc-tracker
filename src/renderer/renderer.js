@@ -1,4 +1,6 @@
-import { formatDay, formatElapsed, formatHours, formatTime, groupByDay } from './format.js'
+import { errorMessage, formatDay, formatElapsed, formatHours, formatTime, groupByDay } from './format.js'
+import { hotkeyLabel } from './options.js'
+import { renderSettings } from './settings.js'
 
 const CONFIRM_MS = 3000
 const COPIED_MS = 1500
@@ -14,7 +16,7 @@ let actionError = null
 function act(promise) {
   actionError = null
   promise.catch((err) => {
-    actionError = err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+    actionError = errorMessage(err)
     renderStatus()
   })
 }
@@ -51,7 +53,7 @@ function createEntry(entry) {
   row.classList.toggle('is-running', isRunning)
   row.querySelector('.entry__title').textContent = entry.title
   row.querySelector('.entry__meta').textContent =
-    `${entry.project} · ${formatTime(entry.createdAt)} · ${formatHours(entry.hours)}`
+    `${entry.project} · ${formatTime(entry.createdAt, state.settings.timeZone)} · ${formatHours(entry.hours)}`
 
   const toggle = row.querySelector('.entry__toggle')
   toggle.textContent = isRunning ? '■' : '▶'
@@ -74,7 +76,8 @@ function renderList() {
 
 function render(next) {
   state = next
-  $('hotkey').textContent = state.hotkey
+  $('hotkey').textContent = hotkeyLabel(state.settings.hotkey)
+  renderSettings(state.settings)
   renderStatus()
   renderList()
 }

@@ -19,9 +19,9 @@ function loadConfig(raw = process.env.basecamp) {
   return config
 }
 
-function isoDate(date) {
-  const offsetMs = date.getTimezoneOffset() * 60000
-  return new Date(date.getTime() - offsetMs).toISOString().slice(0, 10)
+// sv-SE formats dates as YYYY-MM-DD. With no timeZone this uses the system zone.
+function isoDate(date, timeZone) {
+  return new Intl.DateTimeFormat('sv-SE', { timeZone }).format(date)
 }
 
 function toEntry(raw) {
@@ -104,7 +104,10 @@ class Basecamp {
   async entries(now = new Date()) {
     const from = new Date(now)
     from.setDate(from.getDate() - HISTORY_DAYS)
-    const params = new URLSearchParams({ start_date: isoDate(from), end_date: isoDate(now) })
+    // One day past today: teammates in other zones can date entries ahead of ours.
+    const to = new Date(now)
+    to.setDate(to.getDate() + 1)
+    const params = new URLSearchParams({ start_date: isoDate(from), end_date: isoDate(to) })
     const [myId, list] = await Promise.all([this.#myId(), this.#request('GET', `/reports/timesheet.json?${params}`)])
     // The report returns the whole team and ignores its documented person_id filter.
     // Match on person, not creator: other people can log time on your behalf.

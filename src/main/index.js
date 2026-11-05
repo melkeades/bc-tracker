@@ -2,7 +2,7 @@ const path = require('node:path')
 const { app, BrowserWindow, globalShortcut, ipcMain } = require('electron/main')
 const { Basecamp, loadConfig } = require('./basecamp')
 const { createBridge } = require('./bridge')
-const { HOTKEY, PORT } = require('./constants')
+const { DEFAULT_HOTKEY, DEFAULT_TIME_ZONE, PORT } = require('./constants')
 const { createStore } = require('./store')
 const { Tracker } = require('./tracker')
 const { createTray } = require('./tray')
@@ -14,17 +14,31 @@ const ENTRIES_MIN_AGE_MS = 30 * 1000
 let win = null
 let tracker = null
 let api = null
-let updateTray = () => {}
+let tray = null
+let autostart = null
+let settingsStore = null
+let settings = null
 let entries = []
 let entriesFetchedAt = 0
 // startupProblem lasts for the whole run. notice clears on the next good refresh.
 let startupProblem = null
+let hotkeyProblem = null
 let notice = null
 let quitting = false
 
 function publicState() {
   const state = tracker ? tracker.state : { running: null, last: null, pending: 0, error: null }
-  return { ...state, entries, notice: startupProblem ?? notice, hotkey: HOTKEY.replace('CommandOrControl', 'Ctrl') }
+  return {
+    ...state,
+    entries,
+    notice: startupProblem ?? hotkeyProblem ?? notice,
+    settings: {
+      hotkey: settings.hotkey,
+      timeZone: settings.timeZone,
+      autostartAvailable: autostart.available,
+      autostartEnabled: autostart.enabled(),
+    },
+  }
 }
 
 function publish() {
@@ -44,7 +58,6 @@ function createWindow({ hidden }) {
     minHeight: 300,
     show: !hidden,
     backgroundColor: '#17191b',
-    autoHideMenuBar: true,
     icon: path.join(__dirname, '..', '..', 'assets', 'running.png'),
     webPreferences: {
       preload: path.join(__dirname, '..', 'preload.js'),
@@ -52,6 +65,8 @@ function createWindow({ hidden }) {
       sandbox: true,
     },
   })
+  // Without this, pressing Alt while recording a shortcut pops up the menu bar.
+  win.removeMenu()
   win.loadFile(path.join(__dirname, '..', 'renderer', 'index.html'))
 
   // Closing keeps the app in the tray so the extension and hotkey keep working.
@@ -80,20 +95,64 @@ async function refreshEntries({ force = false } = {}) {
   publish()
 }
 
+function loadSettings() {
+  const file = path.join(app.getPath('userData'), 'settings.json')
+  settingsStore = createStore(file, {
+    autostartSet: false,
+    hotkey: DEFAULT_HOTKEY,
+    timeZone: DEFAULT_TIME_ZONE,
+  })
+  settings = settingsStore.load()
+}
+
+function updateSettings(change) {
+  settings = { ...settings, ...change }
+  settingsStore.save(settings)
+  publish()
+}
+
 function createAutostart() {
-  const settings = createStore(path.join(app.getPath('userData'), 'settings.json'), { autostartSet: false })
   // Inside a portable build execPath is a temp folder, not the real .exe.
   const options = { path: process.env.PORTABLE_EXECUTABLE_FILE || process.execPath, args: ['--hidden'] }
-  const autostart = {
+  autostart = {
     available: app.isPackaged,
     enabled: () => app.getLoginItemSettings(options).openAtLogin,
     set: (openAtLogin) => app.setLoginItemSettings({ ...options, openAtLogin }),
   }
-  if (app.isPackaged && !settings.load().autostartSet) {
+  if (app.isPackaged && !settings.autostartSet) {
     autostart.set(true)
-    settings.save({ autostartSet: true })
+    updateSettings({ autostartSet: true })
   }
-  return autostart
+}
+
+function setAutostart(enabled) {
+  autostart.set(enabled)
+  tray?.refreshMenu()
+  publish()
+}
+
+function bindHotkey(accelerator) {
+  globalShortcut.unregisterAll()
+  try {
+    return globalShortcut.register(accelerator, toggle)
+  } catch {
+    return false
+  }
+}
+
+function setHotkey(accelerator) {
+  if (!bindHotkey(accelerator)) {
+    bindHotkey(settings.hotkey)
+    throw new Error('That shortcut is taken by another app')
+  }
+  hotkeyProblem = null
+  updateSettings({ hotkey: accelerator })
+}
+
+function setTimeZone(timeZone) {
+  // Throws on anything that isn't a real zone.
+  new Intl.DateTimeFormat('en-US', { timeZone })
+  updateSettings({ timeZone })
 }
 
 function startBridge() {
@@ -120,6 +179,12 @@ function registerIpc() {
       await refreshEntries({ force: true })
     }),
   )
+  ipcMain.handle('bc:setAutostart', (_event, enabled) => setAutostart(enabled))
+  ipcMain.handle('bc:setHotkey', (_event, accelerator) => setHotkey(accelerator))
+  ipcMain.handle('bc:setTimeZone', (_event, timeZone) => setTimeZone(timeZone))
+  // Paused while recording, or pressing the current combo would toggle the timer.
+  ipcMain.handle('bc:pauseHotkey', () => globalShortcut.unregisterAll())
+  ipcMain.handle('bc:resumeHotkey', () => bindHotkey(settings.hotkey))
 }
 
 function toggle() {
@@ -137,9 +202,9 @@ function setupTracker() {
     return
   }
   const store = createStore(path.join(app.getPath('userData'), 'timer.json'), {})
-  tracker = new Tracker({ api, store })
+  tracker = new Tracker({ api, store, timeZone: () => settings.timeZone })
   tracker.on('change', (state) => {
-    updateTray(state)
+    tray?.update(state)
     publish()
   })
   tracker.on('logged', () => refreshEntries({ force: true }))
@@ -165,18 +230,21 @@ if (!app.requestSingleInstanceLock()) {
   app.on('will-quit', () => globalShortcut.unregisterAll())
 
   app.whenReady().then(() => {
+    loadSettings()
+    createAutostart()
     registerIpc()
     setupTracker()
     createWindow({ hidden: process.argv.includes('--hidden') })
-    updateTray = createTray({
+    tray = createTray({
       getWindow: () => win,
       onOpen: showWindow,
       onToggle: toggle,
       onQuit: () => app.quit(),
-      autostart: createAutostart(),
+      onAutostart: setAutostart,
+      autostart,
     })
-    if (tracker) updateTray(tracker.state)
-    if (!globalShortcut.register(HOTKEY, toggle)) startupProblem = `Hotkey ${HOTKEY} is taken by another app`
+    if (tracker) tray.update(tracker.state)
+    if (!bindHotkey(settings.hotkey)) hotkeyProblem = "Your shortcut is taken by another app. Pick a new one in settings."
     refreshEntries({ force: true })
   })
 }

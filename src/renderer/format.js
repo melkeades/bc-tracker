@@ -1,5 +1,9 @@
 const pad = (n) => String(n).padStart(2, '0')
 
+export function errorMessage(err) {
+  return err.message.replace(/^Error invoking remote method '[^']+': (Error: )?/, '')
+}
+
 export function formatElapsed(ms) {
   const seconds = Math.max(0, Math.floor(ms / 1000))
   return `${pad(Math.floor(seconds / 3600))}:${pad(Math.floor(seconds / 60) % 60)}:${pad(seconds % 60)}`
@@ -10,8 +14,8 @@ export function formatHours(hours) {
   return `${Math.floor(minutes / 60)}h ${pad(minutes % 60)}m`
 }
 
-export function formatTime(iso) {
-  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hour12: false })
+export function formatTime(iso, timeZone) {
+  return new Date(iso).toLocaleTimeString([], { hour: '2-digit', minute: '2-digit', hourCycle: 'h23', timeZone })
 }
 
 export function formatDay(date) {

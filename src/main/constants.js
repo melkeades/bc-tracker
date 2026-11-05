@@ -7,7 +7,8 @@ module.exports = {
   API_BASE: 'https://3.basecampapi.com',
   APP_BASE: 'https://app.basecamp.com',
   USER_AGENT: 'BC Tracker (local desktop app)',
-  HOTKEY: 'CommandOrControl+Shift+Alt+B',
+  DEFAULT_HOTKEY: 'CommandOrControl+Shift+Alt+B',
+  DEFAULT_TIME_ZONE: 'America/Los_Angeles',
   HISTORY_DAYS: 30,
   MIN_LOG_MINUTES: 1,
 }
