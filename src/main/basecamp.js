@@ -104,6 +104,8 @@ class Basecamp {
   async entries(now = new Date()) {
     const from = new Date(now)
     from.setDate(from.getDate() - HISTORY_DAYS)
+    // Back to that week's Monday, so the oldest weekly sum is a whole week.
+    from.setDate(from.getDate() - ((from.getDay() + 6) % 7))
     // One day past today: teammates in other zones can date entries ahead of ours.
     const to = new Date(now)
     to.setDate(to.getDate() + 1)

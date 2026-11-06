@@ -87,6 +87,74 @@ test('the running session never changes the entries passed in', () => {
   assert.deepEqual(entries, ENTRIES)
 })
 
+// 2026-11-02 is a Monday. These cover two weeks and the Sunday and Monday between them.
+const WEEKS = [
+  entry(1, 10, '2026-11-05', 2),
+  entry(2, 10, '2026-11-03', 1.5),
+  entry(3, 10, '2026-11-02', 1),
+  entry(4, 10, '2026-11-01', 4),
+  entry(5, 10, '2026-10-27', 3),
+]
+const weekOptions = { timeZone: 'UTC', now: Date.parse('2026-11-05T15:00:00Z') }
+const weekSums = (days) => days.map((d) => [d.date, d.week?.total ?? null])
+
+test('the newest day of each week carries the Monday to Sunday sum', () => {
+  assert.deepEqual(weekSums(groupByDay(WEEKS, weekOptions)), [
+    ['2026-11-05', 4.5],
+    ['2026-11-03', null],
+    ['2026-11-02', null],
+    ['2026-11-01', 7],
+    ['2026-10-27', null],
+  ])
+})
+
+test('today carries the sum even when the week has a later day', () => {
+  const now = Date.parse('2026-11-03T15:00:00Z')
+  const days = groupByDay(WEEKS, { ...weekOptions, now })
+  assert.deepEqual(weekSums(days).slice(0, 2), [
+    ['2026-11-05', 4.5],
+    ['2026-11-03', 4.5],
+  ])
+})
+
+test('a past week still shows its sum when today has no entries', () => {
+  const now = Date.parse('2026-11-16T15:00:00Z')
+  assert.equal(groupByDay(WEEKS, { ...weekOptions, now })[0].week.total, 4.5)
+})
+
+test('search keeps full weekly sums, on the newest day still listed', () => {
+  const entries = [entry(1, 10, '2026-11-05', 2, 'Other'), entry(2, 20, '2026-11-03', 1, 'Bios')]
+  assert.deepEqual(weekSums(groupByDay(entries, { ...weekOptions, query: 'bios' })), [['2026-11-03', 3]])
+})
+
+test('the running session marks its week as live without adding logged hours', () => {
+  const running = { ...RUNNING, startedAt: Date.parse('2026-11-05T14:00:00Z') }
+  const days = groupByDay(WEEKS, { ...weekOptions, running })
+  assert.deepEqual(days[0].week, { total: 4.5, hasRunning: true })
+  assert.equal(days[3].week.hasRunning, false)
+})
+
+test('the zone can move an entry into another week', () => {
+  const sundayEvening = { ...entry(1, 10, '2026-11-02', 1), createdAt: '2026-11-02T02:00:00Z' }
+  const options = { timeZone: 'America/Los_Angeles', now: Date.parse('2026-11-05T15:00:00Z') }
+  const entries = [entry(2, 10, '2026-11-03', 2), sundayEvening, entry(3, 10, '2026-10-30', 4)]
+  assert.deepEqual(weekSums(groupByDay(entries, options)), [
+    ['2026-11-03', 2],
+    ['2026-11-01', 5],
+    ['2026-10-30', null],
+  ])
+})
+
+test('a week older than the fetched history gets no sum', () => {
+  const sundayEvening = { ...entry(1, 10, '2026-11-02', 1), createdAt: '2026-11-02T02:00:00Z' }
+  const options = { timeZone: 'America/Los_Angeles', now: Date.parse('2026-11-05T15:00:00Z') }
+  const entries = [entry(2, 10, '2026-11-03', 2), sundayEvening]
+  assert.deepEqual(weekSums(groupByDay(entries, options)), [
+    ['2026-11-03', 2],
+    ['2026-11-01', null],
+  ])
+})
+
 test('formatTime shows the computer\'s local time on a 24-hour clock', () => {
   const date = new Date(2026, 10, 5, 0, 30)
   assert.equal(formatTime(date.toISOString()), '00:30')

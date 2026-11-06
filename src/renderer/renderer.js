@@ -60,6 +60,7 @@ function createDuration(hours, isLive) {
 function createDay(day) {
   const label = document.createElement('span')
   label.append(`${formatDay(day.date)} · `, createDuration(day.total, day.hasRunning))
+  if (day.week) label.append(' (', createDuration(day.week.total, day.week.hasRunning), ')')
   const row = document.createElement('div')
   row.className = 'day'
   row.append(label)

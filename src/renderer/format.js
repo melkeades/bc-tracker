@@ -47,11 +47,43 @@ function runningEntry({ recordingId, title, url, startedAt }, entries, timeZone)
   return { id: 'running', recordingId, title, url, project, date, hours: 0, createdAt, isRunning: true }
 }
 
+// Weeks run Monday to Sunday. Working in UTC keeps date-only math clear of clock changes.
+function weekStart(date) {
+  const day = new Date(`${date}T00:00:00Z`)
+  day.setUTCDate(day.getUTCDate() - ((day.getUTCDay() + 6) % 7))
+  return day.toISOString().slice(0, 10)
+}
+
+// The zone can pull the oldest fetched entries back into a week that wasn't fetched,
+// so any week before the oldest stored date is partial and gets no sum.
+function sumWeeks(days, oldestDate) {
+  const firstWeek = weekStart(oldestDate)
+  const weeks = new Map()
+  for (const { date, total, hasRunning } of days) {
+    const key = weekStart(date)
+    if (key < firstWeek) continue
+    const week = weeks.get(key) ?? { total: 0, hasRunning: false }
+    weeks.set(key, { total: week.total + total, hasRunning: week.hasRunning || hasRunning })
+  }
+  return weeks
+}
+
+// Today and the newest listed day of each week carry that week's sum. Days hidden by a
+// search still count, the same way they do in the day totals.
+function markWeekSums(listed, weeks, today) {
+  const marked = new Set()
+  for (const day of listed) {
+    const key = weekStart(day.date)
+    day.week = day.date === today || !marked.has(key) ? (weeks.get(key) ?? null) : null
+    marked.add(key)
+  }
+}
+
 // The time zone only picks the day a row sits under. It never alters entry data.
 // Day totals always cover every entry, so filtering the list never changes them.
 // With uniquePerDay, a row sums that task's entries for the day and shows the newest
 // one's fields. Entries arrive newest first, so the first one seen is the newest.
-export function groupByDay(entries, { query = '', uniquePerDay = false, timeZone, running = null } = {}) {
+export function groupByDay(entries, { query = '', uniquePerDay = false, timeZone, running = null, now = Date.now() } = {}) {
   const needle = query.trim().toLowerCase()
   const days = new Map()
   const all = running ? [...entries, runningEntry(running, entries, timeZone)] : entries
@@ -79,5 +111,10 @@ export function groupByDay(entries, { query = '', uniquePerDay = false, timeZone
     }
   }
 
-  return [...days.values()].filter((day) => day.rows.length).sort((a, b) => b.date.localeCompare(a.date))
+  const allDays = [...days.values()]
+  const listed = allDays.filter((day) => day.rows.length).sort((a, b) => b.date.localeCompare(a.date))
+  const today = zonedDate(now, timeZone)
+  const oldestDate = all.map((entry) => entry.date).sort()[0] ?? today
+  markWeekSums(listed, sumWeeks(allDays, oldestDate), today)
+  return listed
 }
