@@ -69,12 +69,15 @@ function sumWeeks(days, oldestDate) {
 }
 
 // Today and the newest listed day of each week carry that week's sum. Days hidden by a
-// search still count, the same way they do in the day totals.
+// search still count, the same way they do in the day totals. endsWeek marks a sum for a
+// week that's over, so the current week never gets one.
 function markWeekSums(listed, weeks, today) {
+  const currentWeek = weekStart(today)
   const marked = new Set()
   for (const day of listed) {
     const key = weekStart(day.date)
     day.week = day.date === today || !marked.has(key) ? (weeks.get(key) ?? null) : null
+    day.endsWeek = Boolean(day.week) && key < currentWeek
     marked.add(key)
   }
 }

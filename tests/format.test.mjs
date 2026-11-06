@@ -145,6 +145,25 @@ test('the zone can move an entry into another week', () => {
   ])
 })
 
+test('only past weeks are marked as ended, while the current week keeps its sum', () => {
+  const days = groupByDay(WEEKS, weekOptions)
+  assert.deepEqual(days.map((d) => [d.date, d.endsWeek]), [
+    ['2026-11-05', false],
+    ['2026-11-03', false],
+    ['2026-11-02', false],
+    ['2026-11-01', true],
+    ['2026-10-27', false],
+  ])
+  assert.equal(days[0].week.total, 4.5)
+})
+
+test('the newest day of the current week is not marked when today has no entries', () => {
+  const now = Date.parse('2026-11-06T15:00:00Z')
+  const [newest] = groupByDay(WEEKS, { ...weekOptions, now })
+  assert.equal(newest.week.total, 4.5)
+  assert.equal(newest.endsWeek, false)
+})
+
 test('a week older than the fetched history gets no sum', () => {
   const sundayEvening = { ...entry(1, 10, '2026-11-02', 1), createdAt: '2026-11-02T02:00:00Z' }
   const options = { timeZone: 'America/Los_Angeles', now: Date.parse('2026-11-05T15:00:00Z') }
