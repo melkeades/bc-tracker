@@ -63,6 +63,7 @@ function createDay(day) {
   if (day.week) label.append(' (', createDuration(day.week.total, day.week.hasRunning), ')')
   const row = document.createElement('div')
   row.className = 'day'
+  row.classList.toggle('day--week', Boolean(day.week))
   row.append(label)
   return row
 }

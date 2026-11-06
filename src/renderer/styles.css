@@ -230,6 +230,15 @@ kbd {
   background: var(--border);
 }
 
+.day--week {
+  padding: 0;
+}
+
+.day--week::before,
+.day--week::after {
+  background: #fff;
+}
+
 .entry {
   display: flex;
   align-items: center;
