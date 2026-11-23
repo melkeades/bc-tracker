@@ -33,8 +33,16 @@ function toEntry(raw) {
     project: raw.bucket.name,
     date: raw.date,
     hours: Number(raw.hours),
+    description: raw.description ?? '',
     createdAt: raw.created_at,
   }
+}
+
+// Types that can carry time and that people track: to-dos and cards.
+const TASK_TYPES = ['Todo', 'Kanban::Card']
+
+function toTask(raw) {
+  return { recordingId: raw.id, title: raw.title, url: raw.app_url, project: raw.bucket?.name ?? '' }
 }
 
 class Basecamp {
@@ -122,6 +130,21 @@ class Basecamp {
   createEntry({ recordingId, date, minutes }) {
     const hours = `${Math.floor(minutes / 60)}:${String(minutes % 60).padStart(2, '0')}`
     return this.#request('POST', `/recordings/${recordingId}/timesheet/entries.json`, { date, hours })
+  }
+
+  // Basecamp can't move an entry to another task, so this writes a copy there. The caller
+  // deletes the original only once the copy exists, so a failure never loses time.
+  async copyEntry({ date, hours, description }, recordingId) {
+    const body = { date, hours: String(hours), ...(description && { description }) }
+    return toEntry(await this.#request('POST', `/recordings/${recordingId}/timesheet/entries.json`, body))
+  }
+
+  // Older accounts ignore type_names[], so the type is checked here as well.
+  async searchTasks(query) {
+    const params = new URLSearchParams({ q: query, per_page: '25' })
+    for (const type of TASK_TYPES) params.append('type_names[]', type)
+    const results = await this.#request('GET', `/search.json?${params}`)
+    return results.filter((raw) => TASK_TYPES.includes(raw.type)).map(toTask)
   }
 
   deleteEntry(id) {

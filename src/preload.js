@@ -5,6 +5,8 @@ contextBridge.exposeInMainWorld('bc', {
   start: (task) => ipcRenderer.invoke('bc:start', task),
   stop: () => ipcRenderer.invoke('bc:stop'),
   deleteEntries: (ids) => ipcRenderer.invoke('bc:deleteEntries', ids),
+  moveEntries: (ids, recordingId) => ipcRenderer.invoke('bc:moveEntries', ids, recordingId),
+  searchTasks: (query) => ipcRenderer.invoke('bc:searchTasks', query),
   setAutostart: (enabled) => ipcRenderer.invoke('bc:setAutostart', enabled),
   setHotkey: (accelerator) => ipcRenderer.invoke('bc:setHotkey', accelerator),
   setTimeZone: (timeZone) => ipcRenderer.invoke('bc:setTimeZone', timeZone),

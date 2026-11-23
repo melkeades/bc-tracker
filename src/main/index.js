@@ -18,6 +18,10 @@ let tray = null
 let autostart = null
 let settingsStore = null
 let settings = null
+let movedStore = null
+// New entry id -> the original's created time. A moved entry is a fresh copy in Basecamp,
+// so without this it would show, and be grouped by, the time of the move.
+let movedAt = {}
 let entries = []
 let entriesFetchedAt = 0
 // startupProblem lasts for the whole run. notice clears on the next good refresh.
@@ -87,12 +91,54 @@ async function refreshEntries({ force = false } = {}) {
   if (!force && Date.now() - entriesFetchedAt < ENTRIES_MIN_AGE_MS) return
   entriesFetchedAt = Date.now()
   try {
-    entries = await api.entries()
+    const fetched = await api.entries()
+    entries = withMovedTimes(fetched)
+    pruneMovedTimes(fetched)
     notice = null
   } catch (err) {
     notice = `Couldn't load entries: ${err.message}`
   }
   publish()
+}
+
+function withMovedTimes(list) {
+  return list
+    .map((entry) => (movedAt[entry.id] ? { ...entry, createdAt: movedAt[entry.id] } : entry))
+    .sort((a, b) => b.createdAt.localeCompare(a.createdAt))
+}
+
+// Entries that aged out of the history window, or were deleted, no longer need a time.
+function pruneMovedTimes(fetched) {
+  const ids = new Set(fetched.map((entry) => String(entry.id)))
+  const kept = Object.fromEntries(Object.entries(movedAt).filter(([id]) => ids.has(id)))
+  if (Object.keys(kept).length === Object.keys(movedAt).length) return
+  movedAt = kept
+  movedStore.save(movedAt)
+}
+
+// One at a time, copy first: a failed delete leaves a duplicate to clean up, never lost time.
+async function moveEntries(ids, recordingId) {
+  let moved = 0
+  try {
+    for (const id of ids) {
+      const entry = entries.find((e) => String(e.id) === String(id))
+      if (!entry) throw new Error('That entry is gone, the list was out of date')
+      if (entry.recordingId === recordingId) continue
+      const copy = await api.copyEntry(entry, recordingId)
+      movedAt[copy.id] = entry.createdAt
+      movedStore.save(movedAt)
+      await api.deleteEntry(entry.id)
+      moved += 1
+    }
+  } catch (err) {
+    throw new Error(`Moved ${moved} of ${ids.length}: ${err.message}`)
+  } finally {
+    await refreshEntries({ force: true })
+  }
+}
+
+async function searchTasks(query) {
+  return query.trim() ? api.searchTasks(query.trim()) : []
 }
 
 async function deleteEntries(ids) {
@@ -117,6 +163,8 @@ function loadSettings() {
     timeZone: DEFAULT_TIME_ZONE,
   })
   settings = settingsStore.load()
+  movedStore = createStore(path.join(app.getPath('userData'), 'moved.json'), {})
+  movedAt = movedStore.load()
 }
 
 function updateSettings(change) {
@@ -187,6 +235,8 @@ function registerIpc() {
   ipcMain.handle('bc:start', run((task) => tracker.start(task)))
   ipcMain.handle('bc:stop', run(() => tracker.stop()))
   ipcMain.handle('bc:deleteEntries', run(deleteEntries))
+  ipcMain.handle('bc:moveEntries', run(moveEntries))
+  ipcMain.handle('bc:searchTasks', run(searchTasks))
   ipcMain.handle('bc:setAutostart', (_event, enabled) => setAutostart(enabled))
   ipcMain.handle('bc:setHotkey', (_event, accelerator) => setHotkey(accelerator))
   ipcMain.handle('bc:setTimeZone', (_event, timeZone) => setTimeZone(timeZone))

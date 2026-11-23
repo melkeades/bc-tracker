@@ -28,7 +28,14 @@
     <section id="status" class="status">
       <button id="status-stop" class="round round--stop" title="Stop timer" hidden>■</button>
       <span id="status-text" class="status__text">Loading…</span>
+      <button id="status-bulk" class="picker-trigger status__bulk" hidden>
+        <span class="picker-trigger__text"></span>
+      </button>
       <span id="status-clock" class="status__clock"></span>
+      <button id="reassign" class="status__reassign" title="Move entries to another task" aria-pressed="false" hidden>
+        <svg viewBox="0 0 16 16" aria-hidden="true"><path d="M2 5h10M9 2l3 3-3 3M14 11H4M7 8l-3 3 3 3" /></svg>
+        Reassign
+      </button>
     </section>
     <p id="notice" class="notice" hidden></p>
 
@@ -86,6 +93,7 @@
 
     <template id="entry-template">
       <article class="entry">
+        <input type="checkbox" class="entry__check" aria-label="Select all entries of this task" />
         <button class="round entry__toggle"></button>
         <div class="entry__body" title="Copy task link">
           <div class="entry__title"></div>
@@ -100,6 +108,7 @@
 
     <template id="child-template">
       <article class="entry entry--child">
+        <input type="checkbox" class="entry__check" aria-label="Select entry" />
         <div class="entry__body" title="Copy task link">
           <div class="entry__meta"></div>
         </div>
